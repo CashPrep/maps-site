@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Local Business Finder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 8px; font-size: 2rem; }
+    p.sub { text-align: center; color: #555; margin-bottom: 20px; }
+    form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    input { flex: 1 1 200px; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 10px 20px; font-size: 14px; background: #4285f4; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #3367d6; }
+    #status { margin-bottom: 12px; font-size: 14px; color: #333; }
+    .result { background: #fff; border: 1px solid #ddd; padding: 14px; margin-bottom: 10px; border-radius: 6px; }
+    .result h3 { margin-bottom: 4px; font-size: 1rem; }
+    .result .meta { color: #555; font-size: 13px; line-height: 1.6; }
+    .result a { color: #4285f4; text-decoration: none; }
+    .result a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗺️ Local Business Finder</h1>
+    <p class="sub">Search Google Maps data for any business in any city</p>
+    <form id="search-form">
+      <input type="text" id="query" placeholder="e.g. barber shop" required />
+      <input type="text" id="location" placeholder="e.g. Canton, MA" required />
+      <button type="submit">Search</button>
+    </form>
+    <div id="status"></div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById("search-form");
+    const statusDiv = document.getElementById("status");
+    const resultsDiv = document.getElementById("results");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const query = document.getElementById("query").value.trim();
+      const location = document.getElementById("location").value.trim();
+      if (!query || !location) return;
+
+      statusDiv.textContent = "Searching... this may take 10–30 seconds.";
+      resultsDiv.innerHTML = "";
+
+      try {
+        const res = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, location }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          statusDiv.textContent = data.error || "Something went wrong.";
+          return;
+        }
+
+        const results = data.results || [];
+        if (results.length === 0) {
+          statusDiv.textContent = "No results found.";
+          return;
+        }
+
+        statusDiv.textContent = `Found ${results.length} places.`;
+        resultsDiv.innerHTML = "";
+
+        for (const item of results) {
+          const div = document.createElement("div");
+          div.className = "result";
+          const rating = item.rating ? `${item.rating}★` : "No rating";
+          const reviews = item.reviews ? `(${item.reviews} reviews)` : "";
+          div.innerHTML = `
+            <h3>${item.name || "Unnamed place"}</h3>
+            <div class="meta">
+              ${item.address ? item.address + "<br>" : ""}
+              ${rating} ${reviews}<br>
+              ${item.phone ? "Phone: " + item.phone + "<br>" : ""}
+              ${item.website ? "Website: <a href='" + item.website + "' target='_blank'>Visit</a><br>" : ""}
+              ${item.url ? "<a href='" + item.url + "' target='_blank'>Open in Google Maps</a>" : ""}
+            </div>
+          `;
+          resultsDiv.appendChild(div);
+        }
+      } catch (err) {
+        console.error(err);
+        statusDiv.textContent = "Network error. Please try again.";
+      }
+    });
+  </script>
+</body>
+</html>
